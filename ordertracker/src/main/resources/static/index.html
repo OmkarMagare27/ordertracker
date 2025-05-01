@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Order Tracker</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 800px;
+      margin: 40px auto;
+      padding: 20px;
+      background: #f5f5f5;
+      color: #333;
+    }
+
+    h1 {
+      text-align: center;
+      color: #ff6600;
+    }
+
+    form, .order-list {
+      background: #fff;
+      padding: 20px;
+      border-radius: 6px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.05);
+      margin-bottom: 20px;
+    }
+
+    input, select {
+      padding: 8px;
+      margin-bottom: 10px;
+      width: 100%;
+      box-sizing: border-box;
+    }
+
+    button {
+      padding: 8px 12px;
+      margin-right: 5px;
+      cursor: pointer;
+      border: none;
+      border-radius: 4px;
+    }
+
+    button.create {
+      background: #28a745;
+      color: white;
+    }
+
+    button.delete {
+      background: #dc3545;
+      color: white;
+    }
+
+    button.update {
+      background: #007bff;
+      color: white;
+    }
+
+    li {
+      list-style: none;
+      background: #fff;
+      margin-bottom: 10px;
+      padding: 10px;
+      border-radius: 6px;
+      box-shadow: 0 0 5px rgba(0,0,0,0.05);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .order-text {
+      flex: 1;
+    }
+
+    .actions {
+      display: flex;
+      gap: 6px;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>📦 Order Tracker</h1>
+
+  <form id="orderForm">
+    <input type="text" id="orderId" placeholder="Order ID" required>
+    <input type="text" id="customerName" placeholder="Customer Name" required>
+    <input type="text" id="status" placeholder="Status" required>
+    <button type="submit" class="create">Create Order</button>
+  </form>
+
+  <div class="order-list">
+    <h3>All Orders</h3>
+    <ul id="orderList"></ul>
+  </div>
+
+  <script>
+    // Submit form
+    document.getElementById("orderForm").addEventListener("submit", function(e) {
+      e.preventDefault();
+
+      const data = {
+        orderId: document.getElementById("orderId").value,
+        customerName: document.getElementById("customerName").value,
+        status: document.getElementById("status").value
+      };
+
+      fetch("/orders", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data)
+      })
+      .then(res => res.json())
+      .then(() => {
+        alert("Order created!");
+        document.getElementById("orderForm").reset();
+        loadOrders();
+      });
+    });
+
+    // Load orders
+    function loadOrders() {
+      fetch("/orders")
+        .then(res => res.json())
+        .then(data => {
+          const list = document.getElementById("orderList");
+          list.innerHTML = "";
+          data.forEach(order => {
+            const li = document.createElement("li");
+
+            const orderText = document.createElement("span");
+            orderText.className = "order-text";
+            orderText.textContent = `${order.orderId} - ${order.customerName}`;
+
+            const statusDropdown = document.createElement("select");
+            ["Processing", "Shipped", "Delivered"].forEach(option => {
+              const opt = document.createElement("option");
+              opt.value = option;
+              opt.text = option;
+              if (order.status === option) opt.selected = true;
+              statusDropdown.appendChild(opt);
+            });
+
+            const updateBtn = document.createElement("button");
+            updateBtn.textContent = "Update";
+            updateBtn.className = "update";
+            updateBtn.onclick = () => updateOrder(order.id, statusDropdown.value);
+
+            const delBtn = document.createElement("button");
+            delBtn.textContent = "Delete";
+            delBtn.className = "delete";
+            delBtn.onclick = () => deleteOrder(order.id);
+
+            const actions = document.createElement("div");
+            actions.className = "actions";
+            actions.appendChild(statusDropdown);
+            actions.appendChild(updateBtn);
+            actions.appendChild(delBtn);
+
+            li.appendChild(orderText);
+            li.appendChild(actions);
+            list.appendChild(li);
+          });
+        });
+    }
+
+    // Delete order
+    function deleteOrder(id) {
+      fetch(`/orders/${id}`, {
+        method: "DELETE"
+      }).then(() => {
+        alert("Order deleted!");
+        loadOrders();
+      });
+    }
+
+    // Update order status
+    function updateOrder(id, newStatus) {
+      fetch("/orders")
+        .then(res => res.json())
+        .then(data => {
+          const existingOrder = data.find(o => o.id === id);
+          if (!existingOrder) return;
+
+          const updated = {
+            ...existingOrder,
+            status: newStatus
+          };
+
+          fetch("/orders", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(updated)
+          }).then(() => {
+            alert("Order updated!");
+            loadOrders();
+          });
+        });
+    }
+
+    // Load on page start
+    loadOrders();
+  </script>
+
+</body>
+</html>
